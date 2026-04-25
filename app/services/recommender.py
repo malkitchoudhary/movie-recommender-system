@@ -3,6 +3,8 @@ from difflib import get_close_matches
 import numpy as np
 import pandas as pd
 import requests
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 
 from app.utils.loader import DataLoadError, load_recommender_data
 
@@ -19,13 +21,15 @@ class RecommenderDataError(Exception):
     pass
 
 
+@lru_cache(maxsize=3000)
 def fetch_poster(movie_id):
     try:
         url = (
             f"https://api.themoviedb.org/3/movie/{movie_id}"
             f"?api_key={TMDB_API_KEY}&language=en-US"
         )
-        response = requests.get(url, timeout=8)
+
+        response = requests.get(url, timeout=3)
         response.raise_for_status()
 
         data = response.json()
@@ -38,6 +42,7 @@ def fetch_poster(movie_id):
 
     except Exception:
         return POSTER_PLACEHOLDER
+
 
 
 def get_movie_titles(movies):
@@ -53,18 +58,29 @@ def get_movie_titles(movies):
 def find_movie_index(movie_name, movie_titles):
     search_name = movie_name.strip().lower()
 
+    # Exact match
     for index, title in enumerate(movie_titles):
         if title.strip().lower() == search_name:
             return index
 
-    suggestions = get_close_matches(movie_name, movie_titles, n=3, cutoff=0.6)
+    # Partial match
+    for index, title in enumerate(movie_titles):
+        if search_name in title.strip().lower():
+            return index
+
+    # Fuzzy match for spelling mistakes
+    suggestions = get_close_matches(movie_name, movie_titles, n=1, cutoff=0.45)
 
     if suggestions:
-        raise MovieNotFoundError(
-            f"Movie '{movie_name}' not found. Did you mean: {', '.join(suggestions)}?"
-        )
+        matched_movie = suggestions[0]
 
-    raise MovieNotFoundError(f"Movie '{movie_name}' not found.")
+        for index, title in enumerate(movie_titles):
+            if title == matched_movie:
+                return index
+
+    raise MovieNotFoundError(
+        f"Movie '{movie_name}' not found in dataset. Please type another movie name."
+    )
 
 
 def recommend_movies(movie_name, limit=5):
@@ -84,22 +100,45 @@ def recommend_movies(movie_name, limit=5):
         key=lambda item: item[1],
     )
 
-    recommendations = []
+    selected_movies = []
 
     for index, score in distances[1 : limit + 1]:
         movie_title = movies.iloc[index]["title"]
 
         if "movie_id" in movies.columns:
-            movie_id = movies.iloc[index]["movie_id"]
-            poster_url = fetch_poster(movie_id)
+            movie_id = int(movies.iloc[index]["movie_id"])
         else:
-            poster_url = POSTER_PLACEHOLDER
+            movie_id = None
 
-        recommendations.append(
+        selected_movies.append(
             {
                 "title": movie_title,
+                "movie_id": movie_id,
+            }
+        )
+
+    movie_ids = [movie["movie_id"] for movie in selected_movies]
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        poster_urls = list(executor.map(fetch_poster, movie_ids))
+
+    recommendations = []
+
+    for movie, poster_url in zip(selected_movies, poster_urls):
+        recommendations.append(
+            {
+                "title": movie["title"],
                 "poster_url": poster_url,
             }
         )
 
     return recommendations
+
+def get_all_movie_titles():
+    try:
+        movies, similarity = load_recommender_data()
+    except DataLoadError as error:
+        raise RecommenderDataError(str(error))
+
+    return get_movie_titles(movies)
+

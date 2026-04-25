@@ -8,35 +8,8 @@ const recommendButton = document.getElementById("recommendButton");
 const message = document.getElementById("message");
 const results = document.getElementById("results");
 
-const movieOptions = [
-  "Avatar",
-  "Spider-Man 3",
-  "Spider-Man 2",
-  "Spider-Man",
-  "The Amazing Spider-Man",
-  "The Amazing Spider-Man 2",
-  "The Dark Knight",
-  "Batman Begins",
-  "Batman Returns",
-  "Batman Forever",
-  "Batman & Robin",
-  "Iron Man",
-  "Iron Man 2",
-  "Iron Man 3",
-  "The Avengers",
-  "Avengers: Age of Ultron",
-  "Titanic",
-  "Interstellar",
-  "Inception",
-  "The Matrix",
-  "Joker",
-  "Superman Returns",
-  "Man of Steel",
-  "Deadpool",
-  "Thor",
-  "Captain America: The First Avenger",
-  "Guardians of the Galaxy",
-];
+let movieOptions = [];
+
 
 const defaultMovies = [
   {
@@ -196,6 +169,23 @@ movieInput.addEventListener("keydown", function (event) {
     recommendMovie();
   }
 });
+async function loadMovieOptions() {
+  try {
+    const response = await fetch("/movies");
+    const data = await response.json();
 
+    if (!response.ok) {
+      throw new Error(data.detail || "Could not load movies.");
+    }
+
+    movieOptions = data.movies;
+  } catch (error) {
+    showMessage("Could not load movie list.");
+  }
+}
+
+
+loadMovieOptions();
 showMovies(defaultMovies);
 showMessage("");
+
