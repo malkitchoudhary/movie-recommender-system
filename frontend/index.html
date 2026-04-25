@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Recommender System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="content">
+      <h1>Movie Recommender System</h1>
+
+      <label for="movieName">Type or select a movie from the dropdown</label>
+
+      <div class="combo-box">
+        <input
+          type="text"
+          id="movieName"
+          placeholder="Example: Spider-Man 3"
+          autocomplete="off"
+        />
+        <button type="button" id="dropdownButton" class="dropdown-button">▼</button>
+        <div id="dropdownList" class="dropdown-list"></div>
+      </div>
+
+      <button id="recommendButton" class="recommend-button">Recommend</button>
+
+      <p id="message"></p>
+
+      <section id="results" class="movie-grid"></section>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
