@@ -1,4 +1,5 @@
-const API_URL = "http://127.0.0.1:8000/recommend";
+const API_URL = "/recommend";
+
 
 const movieInput = document.getElementById("movieName");
 const dropdownButton = document.getElementById("dropdownButton");
